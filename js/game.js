@@ -81,6 +81,7 @@ window.addEventListener('keyup', e => {
 
 // ─── Game lifecycle ────────────────────────────────────────────────────────────
 
+// Finds a neighbourhood-only road tile (T.ROAD=0) for truck/hunter spawning
 function findRoadTile(excludeTile = null) {
   const candidates = [];
   for (let r = 0; r < ROWS; r++) {
@@ -92,6 +93,40 @@ function findRoadTile(excludeTile = null) {
     }
   }
   return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+// Finds any passable tile (road + main road) within a bounding box
+function findPassableInArea(rMin, rMax, cMin, cMax) {
+  const candidates = [];
+  for (let r = rMin; r <= rMax; r++) {
+    for (let c = cMin; c <= cMax; c++) {
+      if (map.isRoad(c, r)) candidates.push({ x: c, y: r });
+    }
+  }
+  return candidates.length ? candidates[Math.floor(Math.random() * candidates.length)] : null;
+}
+
+// Spawn NPCs: guarantee one per quadrant, fill remaining randomly (2–10 total)
+function spawnNPCs(count) {
+  const mr = map.mainRoadRow;
+  const mc = map.mainRoadCol;
+  const quadrants = [
+    [0,      mr - 1, 0,      mc - 1],
+    [0,      mr - 1, mc + 1, COLS - 1],
+    [mr + 1, ROWS-1, 0,      mc - 1],
+    [mr + 1, ROWS-1, mc + 1, COLS - 1],
+  ];
+  const result = [];
+  for (let i = 0; i < Math.min(count, 4); i++) {
+    const [rMin, rMax, cMin, cMax] = quadrants[i];
+    const pos = findPassableInArea(rMin, rMax, cMin, cMax);
+    if (pos) result.push(new NPC(pos.x, pos.y, i));
+  }
+  for (let i = 4; i < count; i++) {
+    const pos = findPassableInArea(0, ROWS - 1, 0, COLS - 1);
+    if (pos) result.push(new NPC(pos.x, pos.y, i));
+  }
+  return result;
 }
 
 function startGame() {
@@ -112,12 +147,9 @@ function startGame() {
   );
   hunter = new Hunter(hunterPos.x, hunterPos.y);
 
-  // Spawn 4 NPC traffic cars on random road tiles
-  npcs = [];
-  for (let i = 0; i < 4; i++) {
-    const pos = findRoadTile(truckPos);
-    npcs.push(new NPC(pos.x, pos.y, i));
-  }
+  // Spawn 2–10 NPC traffic cars, at least one per quadrant
+  const npcCount = 2 + Math.floor(Math.random() * 9);
+  npcs = spawnNPCs(npcCount);
 
   elapsed = 0;
   lastTime = null;

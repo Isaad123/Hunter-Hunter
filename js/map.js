@@ -49,6 +49,17 @@ function tryGenerate() {
   for (let r = 0; r < ROWS; r++) tiles[r][MID_COL] = T.MAIN_ROAD;
   tiles[MID_ROW][MID_COL] = T.INTERSECTION;
 
+  // Intersection buffer zone: block neighbourhood tiles within 2 tiles of the
+  // intersection so the only passable routes in/out are the 4 main-road approaches.
+  // This forces traffic through the intersection when moving near it.
+  for (let r = MID_ROW - 2; r <= MID_ROW + 2; r++) {
+    for (let c = MID_COL - 2; c <= MID_COL + 2; c++) {
+      if (r >= 1 && r < ROWS - 1 && c >= 1 && c < COLS - 1 && tiles[r][c] === T.ROAD) {
+        tiles[r][c] = T.BLOCK;
+      }
+    }
+  }
+
   // Ensure border is always passable
   for (let c = 0; c < COLS; c++) {
     if (tiles[0][c] === T.BLOCK) tiles[0][c] = T.ROAD;
