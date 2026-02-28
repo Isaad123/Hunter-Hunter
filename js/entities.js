@@ -1,6 +1,7 @@
 import { TILE, bfsDistances } from './map.js';
 
-const SPEED = 3.5; // tiles per second
+const TRUCK_SPEED  = 4.5; // tiles per second — slightly faster than Hunter
+const HUNTER_SPEED = 3.0; // tiles per second
 
 // Direction constants
 export const DIR = {
@@ -18,26 +19,30 @@ function chebyshev(ax, ay, bx, by) {
 
 export class Truck {
   constructor(tx, ty) {
-    this.tx = tx;          // current tile x (integer)
-    this.ty = ty;          // current tile y
-    this.px = tx * TILE;   // pixel x (for rendering)
-    this.py = ty * TILE;   // pixel y
-    this.moveProgress = 0; // 0→1 interpolation to next tile
+    this.tx = tx;
+    this.ty = ty;
+    this.px = tx * TILE;
+    this.py = ty * TILE;
+    this.moveProgress = 0;
     this.moving = false;
     this.facing = DIR.RIGHT;
-    this.nextDir = null;   // queued direction
-    // Target tile (while moving)
+    this.nextDir = null;
     this.targetTx = tx;
     this.targetTy = ty;
+    this.stallTimer = 0; // ms remaining in stop-sign stall
   }
 
   queueDirection(dir) {
     this.nextDir = dir;
   }
 
-  update(dt, map) {
+  // trafficLight may be null during non-playing states
+  update(dt, map, trafficLight) {
+    const dtMs = dt * 1000;
+
+    // Interpolate movement toward target tile
     if (this.moving) {
-      this.moveProgress += SPEED * dt;
+      this.moveProgress += TRUCK_SPEED * dt;
       if (this.moveProgress >= 1) {
         // Arrived at target tile
         this.tx = this.targetTx;
@@ -46,31 +51,46 @@ export class Truck {
         this.moving = false;
         this.px = this.tx * TILE;
         this.py = this.ty * TILE;
+
+        // Stop sign: stall the truck for 2 seconds
+        if (map.stopSigns && map.stopSigns.has(`${this.tx},${this.ty}`)) {
+          this.stallTimer = 2000;
+        }
       } else {
         this.px = (this.tx + this.facing.x * this.moveProgress) * TILE;
         this.py = (this.ty + this.facing.y * this.moveProgress) * TILE;
       }
     }
 
-    if (!this.moving) {
-      // Try queued direction first
-      let moved = false;
-      if (this.nextDir) {
-        const nx = this.tx + this.nextDir.x;
-        const ny = this.ty + this.nextDir.y;
-        if (map.isRoad(nx, ny)) {
-          this.facing = this.nextDir;
+    // Count down stop-sign stall
+    if (this.stallTimer > 0) {
+      this.stallTimer -= dtMs;
+      return; // don't start new movement while stalled
+    }
+
+    // Try to start movement in queued direction
+    if (!this.moving && this.nextDir) {
+      const nx = this.tx + this.nextDir.x;
+      const ny = this.ty + this.nextDir.y;
+      if (map.isRoad(nx, ny)) {
+        this.facing = this.nextDir;
+
+        // Red / yellow light blocks entry into the intersection
+        const blockedByLight =
+          trafficLight &&
+          map.isIntersection(nx, ny) &&
+          !trafficLight.canEnter(this.nextDir.x, this.nextDir.y);
+
+        if (!blockedByLight) {
           this.targetTx = nx;
           this.targetTy = ny;
           this.moving = true;
-          moved = true;
         }
-        this.nextDir = null;
       }
+      this.nextDir = null;
     }
   }
 
-  /** Returns the interpolated center pixel position */
   getCenterPx() {
     if (this.moving) {
       return {
@@ -99,7 +119,7 @@ export class Hunter {
 
   update(dt, map, truck) {
     if (this.moving) {
-      this.moveProgress += SPEED * dt;
+      this.moveProgress += HUNTER_SPEED * dt;
       if (this.moveProgress >= 1) {
         this.tx = this.targetTx;
         this.ty = this.targetTy;
@@ -114,14 +134,12 @@ export class Hunter {
     }
 
     if (!this.moving) {
-      // Update AI state
       const dist = chebyshev(this.tx, this.ty, truck.tx, truck.ty);
       if (dist <= 3) {
         this.state = 'flee';
       } else if (dist > 5) {
         this.state = 'wander';
       }
-
       this._chooseNextMove(map, truck);
     }
   }
@@ -133,11 +151,9 @@ export class Hunter {
     let chosen = null;
 
     if (this.state === 'flee') {
-      // BFS from truck position to score escape options
       const truckDists = bfsDistances(map, truck.tx, truck.ty, null);
       const key = (x, y) => `${x},${y}`;
 
-      // Score each neighbor by BFS distance from truck (higher = safer)
       let best = -1;
       const candidates = [];
       for (const n of neighbors) {
@@ -150,10 +166,8 @@ export class Hunter {
           candidates.push(n);
         }
       }
-      // Pick randomly among best candidates
       chosen = candidates[Math.floor(Math.random() * candidates.length)];
     } else {
-      // Wander: pick a random valid neighbor, prefer not reversing
       const notReverse = neighbors.filter(n => {
         if (!this.lastDir) return true;
         return !(n.dx === -this.lastDir.x && n.dy === -this.lastDir.y);
@@ -183,7 +197,6 @@ export class Hunter {
     return { x: this.tx * TILE + TILE / 2, y: this.ty * TILE + TILE / 2 };
   }
 
-  /** Count valid road neighbors (used for "trapped" win condition) */
   countFreeNeighbors(map, truckTile) {
     const neighbors = map.getNeighbors(this.tx, this.ty);
     return neighbors.filter(n => !(n.x === truckTile.x && n.y === truckTile.y)).length;
