@@ -80,14 +80,13 @@ window.addEventListener('keyup', e => {
   if (i !== -1) heldKeys.splice(i, 1);
 });
 
-// Tap anywhere to start / restart (touch devices)
-window.addEventListener('pointerup', e => {
-  if (e.pointerType !== 'touch') return;
-  if (gameState === 'TITLE') { startGame(); return; }
-  if (gameState === 'WIN')   { startGame(); return; }
-});
+// Tap anywhere to start / restart on touch devices
+window.addEventListener('touchend', e => {
+  if (gameState === 'TITLE') { e.preventDefault(); startGame(); return; }
+  if (gameState === 'WIN')   { e.preventDefault(); startGame(); return; }
+}, { passive: false });
 
-// On-screen D-pad
+// On-screen D-pad — use native touch events for maximum iOS Safari compatibility
 function setupDpad() {
   const buttons = [
     ['btn-up',    DIR.UP],
@@ -98,18 +97,27 @@ function setupDpad() {
   for (const [id, dir] of buttons) {
     const btn = document.getElementById(id);
     if (!btn) continue;
-    btn.addEventListener('pointerdown', e => {
+
+    // Touch (mobile)
+    btn.addEventListener('touchstart', e => {
       e.preventDefault();
       touchDir = dir;
       btn.classList.add('pressed');
-    });
-    const release = () => {
+    }, { passive: false });
+
+    const releaseTouch = e => {
+      e.preventDefault();
       touchDir = null;
       btn.classList.remove('pressed');
     };
-    btn.addEventListener('pointerup',     release);
-    btn.addEventListener('pointercancel', release);
-    btn.addEventListener('pointerleave',  release);
+    btn.addEventListener('touchend',    releaseTouch, { passive: false });
+    btn.addEventListener('touchcancel', releaseTouch, { passive: false });
+
+    // Mouse (desktop fallback so D-pad is also clickable with a mouse)
+    btn.addEventListener('mousedown', () => { touchDir = dir; btn.classList.add('pressed'); });
+    const releaseMouse = () => { touchDir = null; btn.classList.remove('pressed'); };
+    btn.addEventListener('mouseup',    releaseMouse);
+    btn.addEventListener('mouseleave', releaseMouse);
   }
 }
 setupDpad();
