@@ -103,6 +103,7 @@ function tryGenerate() {
 
   addDeadEnds(tiles, map);
   addStopSigns(map);
+  addElectricalBox(map);
 
   return map;
 }
@@ -195,6 +196,22 @@ function addStopSigns(map) {
       const pick = candidates[Math.floor(Math.random() * candidates.length)];
       stopSigns.add(`${pick.x},${pick.y}`);
     }
+  }
+}
+
+// Place electrical box on a random neighbourhood road tile (not stop sign, not border)
+function addElectricalBox(map) {
+  const { tiles, stopSigns } = map;
+  const candidates = [];
+  for (let r = 1; r < ROWS - 1; r++) {
+    for (let c = 1; c < COLS - 1; c++) {
+      if (tiles[r][c] === T.ROAD && !stopSigns.has(`${c},${r}`)) {
+        candidates.push({ x: c, y: r });
+      }
+    }
+  }
+  if (candidates.length > 0) {
+    map.electricalBox = candidates[Math.floor(Math.random() * candidates.length)];
   }
 }
 

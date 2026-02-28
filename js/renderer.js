@@ -209,6 +209,48 @@ export class Renderer {
     ctx.beginPath(); ctx.arc(cx, cy - 6,  3.5, 0, Math.PI * 2); ctx.fill();
   }
 
+  // ─── Electrical box ──────────────────────────────────────────────────────────
+
+  drawElectricalBox(map, boxTimer, boxDuration) {
+    if (!map || !map.electricalBox) return;
+    const { x, y } = map.electricalBox;
+    const px = x * TILE + TILE / 2;
+    const py = y * TILE + TILE / 2;
+    const ctx = this.ctx;
+    const isActive = boxTimer > 0;
+
+    // Pulsing yellow glow when Hunter is hacking
+    if (isActive) {
+      const alpha = 0.25 + 0.25 * Math.sin(Date.now() / 180);
+      ctx.fillStyle = `rgba(255, 220, 0, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(px, py - 6, 15, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Metal box body
+    ctx.fillStyle = '#5a6a50';
+    ctx.fillRect(px - 8, py - 17, 16, 13);
+    ctx.strokeStyle = '#2a3020';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px - 8, py - 17, 16, 13);
+    // Top trim
+    ctx.fillStyle = '#3a4a30';
+    ctx.fillRect(px - 7, py - 16, 14, 2);
+
+    // Lightning bolt — yellow when active, dim when idle
+    ctx.fillStyle = isActive ? '#ffdd00' : '#887700';
+    ctx.beginPath();
+    ctx.moveTo(px + 2,  py - 16);
+    ctx.lineTo(px - 2,  py - 10);
+    ctx.lineTo(px + 1,  py - 10);
+    ctx.lineTo(px - 2,  py - 5);
+    ctx.lineTo(px + 4,  py - 12);
+    ctx.lineTo(px + 1,  py - 12);
+    ctx.closePath();
+    ctx.fill();
+  }
+
   // ─── NPC cars ────────────────────────────────────────────────────────────────
 
   drawNPCs(npcs) {
@@ -321,12 +363,12 @@ export class Renderer {
 
   drawHUD(state) {
     const ctx = this.ctx;
-    const { gameState, elapsed, trappedCountdown, truckStall, trafficLight } = state;
+    const { gameState, elapsed, trappedCountdown, truckStall, trafficLight, boxTimer, boxDuration } = state;
     const W = this.canvas.width;
     const H = this.canvas.height;
 
     // Elapsed timer
-    if (gameState === 'PLAYING' || gameState === 'WIN') {
+    if (gameState === 'PLAYING' || gameState === 'WIN' || gameState === 'LOSE') {
       const secs = Math.floor(elapsed / 1000);
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
       ctx.fillRect(8, 8, 110, 28);
@@ -373,6 +415,27 @@ export class Renderer {
       ctx.textAlign = 'left';
     }
 
+    // Electrical box warning — Hunter is hacking
+    if (gameState === 'PLAYING' && boxTimer > 0 && boxDuration) {
+      const progress = boxTimer / boxDuration;
+      const secsLeft = ((boxDuration - boxTimer) / 1000).toFixed(1);
+      const msg = `DONNY INCOMING: ${secsLeft}s`;
+      ctx.font = 'bold 18px Courier New';
+      ctx.textAlign = 'center';
+      const tw = ctx.measureText(msg).width;
+      const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 140);
+      ctx.fillStyle = `rgba(220, 80, 0, ${pulse})`;
+      ctx.fillRect(W / 2 - tw / 2 - 12, 46, tw + 24, 28);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(msg, W / 2, 65);
+      // Progress bar
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(W / 2 - 110, 78, 220, 8);
+      ctx.fillStyle = '#ffdd00';
+      ctx.fillRect(W / 2 - 110, 78, 220 * progress, 8);
+      ctx.textAlign = 'left';
+    }
+
     // Stop sign stall countdown
     if (gameState === 'PLAYING' && truckStall > 0) {
       const secs = (truckStall / 1000).toFixed(1);
@@ -403,6 +466,29 @@ export class Renderer {
       ctx.font = '18px Courier New';
       if (Math.floor(Date.now() / 500) % 2 === 0) {
         ctx.fillText('Press R or tap to play again', W / 2, H / 2 + 55);
+      }
+      ctx.textAlign = 'left';
+    }
+
+    // Lose overlay — Donny arrived
+    if (gameState === 'LOSE') {
+      ctx.fillStyle = 'rgba(0,0,0,0.78)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ff4444';
+      ctx.font = 'bold 52px Courier New';
+      ctx.fillText('DONNY ARRIVES!', W / 2, H / 2 - 50);
+      ctx.fillStyle = '#ffcc00';
+      ctx.font = 'bold 28px Courier New';
+      ctx.fillText('Hunter Escapes!', W / 2, H / 2 + 2);
+      const secs = (elapsed / 1000).toFixed(1);
+      ctx.fillStyle = '#fff';
+      ctx.font = '20px Courier New';
+      ctx.fillText(`Time: ${secs} seconds`, W / 2, H / 2 + 40);
+      ctx.fillStyle = '#aaa';
+      ctx.font = '16px Courier New';
+      if (Math.floor(Date.now() / 500) % 2 === 0) {
+        ctx.fillText('Press R or tap to play again', W / 2, H / 2 + 76);
       }
       ctx.textAlign = 'left';
     }

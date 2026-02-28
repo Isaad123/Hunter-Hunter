@@ -24,6 +24,10 @@ let lastTime = null;
 const TRAPPED_DURATION = 3000; // ms
 let trappedTimer = null;
 
+// Electrical box lose condition
+const BOX_DURATION = 15000; // ms Hunter must stay on box to summon Donny
+let boxTimer = 0;
+
 // ─── Traffic light ─────────────────────────────────────────────────────────────
 
 const LIGHT_PHASES = [
@@ -68,7 +72,7 @@ let touchDir = null; // direction held via on-screen D-pad
 
 window.addEventListener('keydown', e => {
   if (gameState === 'TITLE') { startGame(); return; }
-  if (gameState === 'WIN') { if (e.key === 'r' || e.key === 'R') startGame(); return; }
+  if (gameState === 'WIN' || gameState === 'LOSE') { if (e.key === 'r' || e.key === 'R') startGame(); return; }
   if (KEY_DIR_MAP[e.key]) {
     e.preventDefault();
     if (!heldKeys.includes(e.key)) heldKeys.push(e.key);
@@ -83,7 +87,7 @@ window.addEventListener('keyup', e => {
 // Tap anywhere to start / restart on touch devices
 window.addEventListener('touchend', e => {
   if (gameState === 'TITLE') { e.preventDefault(); startGame(); return; }
-  if (gameState === 'WIN')   { e.preventDefault(); startGame(); return; }
+  if (gameState === 'WIN' || gameState === 'LOSE') { e.preventDefault(); startGame(); return; }
 }, { passive: false });
 
 // On-screen D-pad — use native touch events for maximum iOS Safari compatibility
@@ -197,6 +201,7 @@ function startGame() {
   elapsed = 0;
   lastTime = null;
   trappedTimer = null;
+  boxTimer = 0;
   gameState = 'PLAYING';
 
   titleScreen.classList.add('hidden');
@@ -233,6 +238,19 @@ function checkWin(dt) {
   }
 }
 
+// ─── Electrical box check ──────────────────────────────────────────────────────
+
+function checkBox(dt) {
+  if (hunter.state === 'hacking') {
+    boxTimer += dt * 1000;
+    if (boxTimer >= BOX_DURATION) {
+      gameState = 'LOSE';
+    }
+  } else {
+    boxTimer = 0;
+  }
+}
+
 // ─── Game loop ─────────────────────────────────────────────────────────────────
 
 function loop(timestamp) {
@@ -258,14 +276,16 @@ function loop(timestamp) {
 
     for (const npc of npcs) npc.update(dt, map);
     truck.update(dt, map, trafficLight, npcs);
-    hunter.update(dt, map, truck);
+    hunter.update(dt, map, truck, map.electricalBox);
 
     checkWin(dt);
+    if (gameState === 'PLAYING') checkBox(dt);
   }
 
   renderer.clear();
   renderer.drawMap(map);
   renderer.drawTrafficLights(map, trafficLight);
+  renderer.drawElectricalBox(map, boxTimer, BOX_DURATION);
   renderer.drawNPCs(npcs);
   renderer.drawTruck(truck);
   renderer.drawHunter(hunter);
@@ -276,6 +296,8 @@ function loop(timestamp) {
     hunterFleeing: hunter.state === 'flee',
     truckStall: truck.stallTimer,
     trafficLight,
+    boxTimer,
+    boxDuration: BOX_DURATION,
   });
 }
 
