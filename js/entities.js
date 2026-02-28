@@ -121,7 +121,7 @@ export class Hunter {
     this.facing = DIR.DOWN;
     this.targetTx = tx;
     this.targetTy = ty;
-    this.state = 'seek'; // 'wander' | 'flee' | 'seek' | 'hacking'
+    this.state = 'seek'; // 'flee' | 'seek' | 'hacking'
     this.lastDir = null;
   }
 
@@ -144,20 +144,23 @@ export class Hunter {
     if (!this.moving) {
       const dist = chebyshev(this.tx, this.ty, truck.tx, truck.ty);
 
-      // Flee overrides everything when truck is close
-      if (dist <= 3) {
+      // Flee threshold is higher while hacking — standing still needs more lead time
+      const fleeRadius  = this.state === 'hacking' ? 5 : 3;
+      const calmRadius  = this.state === 'hacking' ? 7 : 5;
+
+      if (dist <= fleeRadius) {
         this.state = 'flee';
-      } else if (this.state === 'flee' && dist > 5) {
+      } else if (this.state === 'flee' && dist > calmRadius) {
         // Done fleeing — head back to box
-        this.state = boxPos ? 'seek' : 'wander';
+        this.state = boxPos ? 'seek' : 'flee';
       }
 
       // Arrived at box and not fleeing → start hacking
       if (this.state !== 'flee' && boxPos && this.tx === boxPos.x && this.ty === boxPos.y) {
         this.state = 'hacking';
       } else if (this.state === 'hacking') {
-        // Somehow left the box (e.g. just fled), resume seeking
-        this.state = boxPos ? 'seek' : 'wander';
+        // Left the box tile somehow — resume seeking
+        this.state = boxPos ? 'seek' : 'flee';
       }
 
       if (this.state !== 'hacking') {
@@ -173,8 +176,11 @@ export class Hunter {
     const key = (x, y) => `${x},${y}`;
     let chosen = null;
 
-    if (this.state === 'flee') {
-      const truckDists = bfsDistances(map, truck.tx, truck.ty, null);
+    // Always compute truck distances — used by flee and seek alike
+    const truckDists = bfsDistances(map, truck.tx, truck.ty, null);
+
+    if (this.state === 'flee' || !boxPos) {
+      // Pure escape: pick the neighbour farthest from truck
       let best = -1;
       const candidates = [];
       for (const n of neighbors) {
@@ -188,30 +194,26 @@ export class Hunter {
         }
       }
       chosen = candidates[Math.floor(Math.random() * candidates.length)];
-    } else if (this.state === 'seek' && boxPos) {
-      // Navigate toward electrical box
+    } else {
+      // Seek + escape: score each neighbour by (truckDist - boxDist).
+      // Hunter naturally moves toward the box while preferring tiles
+      // that also increase distance from the truck.
       const boxDists = bfsDistances(map, boxPos.x, boxPos.y, null);
-      let best = Infinity;
+      let best = -Infinity;
       const candidates = [];
       for (const n of neighbors) {
-        const d = boxDists.get(key(n.x, n.y)) ?? 999;
-        if (d < best) {
-          best = d;
+        const td = truckDists.get(key(n.x, n.y)) ?? 0;
+        const bd = boxDists.get(key(n.x, n.y)) ?? 999;
+        const score = td - bd;
+        if (score > best) {
+          best = score;
           candidates.length = 0;
           candidates.push(n);
-        } else if (d === best) {
+        } else if (score === best) {
           candidates.push(n);
         }
       }
       chosen = candidates[Math.floor(Math.random() * candidates.length)];
-    } else {
-      // Wander — avoid reversing direction
-      const notReverse = neighbors.filter(n => {
-        if (!this.lastDir) return true;
-        return !(n.dx === -this.lastDir.x && n.dy === -this.lastDir.y);
-      });
-      const pool = notReverse.length > 0 ? notReverse : neighbors;
-      chosen = pool[Math.floor(Math.random() * pool.length)];
     }
 
     if (chosen) {
