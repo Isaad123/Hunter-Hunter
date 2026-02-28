@@ -7,6 +7,10 @@ export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
+    this.hunterImage = null;
+    const img = new Image();
+    img.onload = () => { this.hunterImage = img; };
+    img.src = 'Hunter%208%20bit.png';
   }
 
   clear() {
@@ -134,8 +138,23 @@ export class Renderer {
     const center = hunter.getCenterPx();
     ctx.save();
     ctx.translate(center.x, center.y);
-    ctx.rotate(hunter.facing.angle);
-    this._spriteHunter(ctx, hunter.state === 'flee');
+
+    if (this.hunterImage) {
+      // Draw full-body image upright, centered on the tile
+      const W = 24, H = 38;
+      ctx.drawImage(this.hunterImage, -W / 2, -H / 2 - 2, W, H);
+      // Fleeing indicator — red glow under feet
+      if (hunter.state === 'flee') {
+        ctx.fillStyle = 'rgba(224,80,80,0.6)';
+        ctx.beginPath();
+        ctx.ellipse(0, H / 2 - 4, 10, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else {
+      ctx.rotate(hunter.facing.angle);
+      this._spriteHunter(ctx, hunter.state === 'flee');
+    }
+
     ctx.restore();
   }
 

@@ -116,9 +116,9 @@ export class Hunter {
     if (!this.moving) {
       // Update AI state
       const dist = chebyshev(this.tx, this.ty, truck.tx, truck.ty);
-      if (dist <= 8) {
+      if (dist <= 3) {
         this.state = 'flee';
-      } else if (dist > 12) {
+      } else if (dist > 5) {
         this.state = 'wander';
       }
 

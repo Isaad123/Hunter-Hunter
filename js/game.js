@@ -25,25 +25,20 @@ let trappedTimer = null;       // null = not trapped, else ms remaining
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 
+const heldKeys = []; // ordered by press-time; most recent = last element
+
 window.addEventListener('keydown', e => {
-  if (gameState === 'TITLE') {
-    startGame();
-    return;
-  }
-
-  if (gameState === 'WIN') {
-    if (e.key === 'r' || e.key === 'R') {
-      startGame();
-    }
-    return;
-  }
-
-  // PLAYING
-  const dir = KEY_DIR_MAP[e.key];
-  if (dir) {
+  if (gameState === 'TITLE') { startGame(); return; }
+  if (gameState === 'WIN') { if (e.key === 'r' || e.key === 'R') startGame(); return; }
+  if (KEY_DIR_MAP[e.key]) {
     e.preventDefault();
-    truck.queueDirection(dir);
+    if (!heldKeys.includes(e.key)) heldKeys.push(e.key);
   }
+});
+
+window.addEventListener('keyup', e => {
+  const i = heldKeys.indexOf(e.key);
+  if (i !== -1) heldKeys.splice(i, 1);
 });
 
 // ─── Game lifecycle ────────────────────────────────────────────────────────────
@@ -143,6 +138,10 @@ function loop(timestamp) {
 
   if (gameState === 'PLAYING') {
     elapsed += dt * 1000;
+
+    // Queue direction from most-recently held key
+    const activeKey = heldKeys[heldKeys.length - 1];
+    if (activeKey) truck.queueDirection(KEY_DIR_MAP[activeKey]);
 
     truck.update(dt, map);
     hunter.update(dt, map, truck);
