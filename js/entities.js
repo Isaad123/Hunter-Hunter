@@ -1,8 +1,9 @@
 import { TILE, bfsDistances } from './map.js';
 
-// Truck gains exactly 1 tile per 7 tiles the Hunter travels (ratio 8:7)
-const HUNTER_SPEED = 3.5; // tiles per second
-const TRUCK_SPEED  = 4.0; // tiles per second  (4.0 / 3.5 = 8/7)
+// Truck gains exactly 1 tile per 16 tiles the Hunter travels (ratio 17:16)
+const HUNTER_SPEED = 3.2; // tiles per second
+const TRUCK_SPEED  = 3.4; // tiles per second  (3.4 / 3.2 = 17/16)
+const NPC_SPEED    = 2.2; // tiles per second — background traffic cars
 
 // Direction constants
 export const DIR = {
@@ -37,8 +38,8 @@ export class Truck {
     this.nextDir = dir;
   }
 
-  // trafficLight may be null during non-playing states
-  update(dt, map, trafficLight) {
+  // trafficLight may be null during non-playing states; npcs is the NPC array
+  update(dt, map, trafficLight, npcs) {
     const dtMs = dt * 1000;
 
     // Interpolate movement toward target tile
@@ -82,7 +83,13 @@ export class Truck {
           map.isIntersection(nx, ny) &&
           !trafficLight.canEnter(this.nextDir.x, this.nextDir.y);
 
-        if (!blockedByLight) {
+        // NPC car occupying the target tile (current position or in-transit target)
+        const blockedByNPC = npcs && npcs.some(npc =>
+          (npc.tx === nx && npc.ty === ny) ||
+          (npc.moving && npc.targetTx === nx && npc.targetTy === ny)
+        );
+
+        if (!blockedByLight && !blockedByNPC) {
           this.targetTx = nx;
           this.targetTy = ny;
           this.moving = true;
@@ -201,5 +208,70 @@ export class Hunter {
   countFreeNeighbors(map, truckTile) {
     const neighbors = map.getNeighbors(this.tx, this.ty);
     return neighbors.filter(n => !(n.x === truckTile.x && n.y === truckTile.y)).length;
+  }
+}
+
+// ─── NPC traffic car ──────────────────────────────────────────────────────────
+
+const NPC_COLORS = ['#e8a020', '#4488dd', '#dd4444', '#44cc66'];
+
+export class NPC {
+  constructor(tx, ty, colorIndex) {
+    this.tx = tx;
+    this.ty = ty;
+    this.px = tx * TILE;
+    this.py = ty * TILE;
+    this.moveProgress = 0;
+    this.moving = false;
+    this.facing = DIR.RIGHT;
+    this.targetTx = tx;
+    this.targetTy = ty;
+    this.lastDir = null;
+    this.color = NPC_COLORS[colorIndex % NPC_COLORS.length];
+  }
+
+  update(dt, map) {
+    if (this.moving) {
+      this.moveProgress += NPC_SPEED * dt;
+      if (this.moveProgress >= 1) {
+        this.tx = this.targetTx;
+        this.ty = this.targetTy;
+        this.moveProgress = 0;
+        this.moving = false;
+        this.px = this.tx * TILE;
+        this.py = this.ty * TILE;
+      } else {
+        this.px = (this.tx + this.facing.x * this.moveProgress) * TILE;
+        this.py = (this.ty + this.facing.y * this.moveProgress) * TILE;
+      }
+    }
+
+    if (!this.moving) {
+      const neighbors = map.getNeighbors(this.tx, this.ty);
+      if (neighbors.length === 0) return;
+      const notReverse = neighbors.filter(n => {
+        if (!this.lastDir) return true;
+        return !(n.dx === -this.lastDir.x && n.dy === -this.lastDir.y);
+      });
+      const pool = notReverse.length > 0 ? notReverse : neighbors;
+      const chosen = pool[Math.floor(Math.random() * pool.length)];
+      const dx = chosen.x - this.tx;
+      const dy = chosen.y - this.ty;
+      this.facing = ALL_DIRS.find(d => d.x === dx && d.y === dy) || DIR.RIGHT;
+      this.lastDir = { x: dx, y: dy };
+      this.targetTx = chosen.x;
+      this.targetTy = chosen.y;
+      this.moving = true;
+    }
+  }
+
+  getCenterPx() {
+    if (this.moving) {
+      return {
+        x: (this.tx + this.facing.x * this.moveProgress) * TILE + TILE / 2,
+        y: (this.ty + this.facing.y * this.moveProgress) * TILE + TILE / 2,
+      };
+    }
+    return { x: this.tx * TILE + TILE / 2, y: this.ty * TILE + TILE / 2 };
   }
 }

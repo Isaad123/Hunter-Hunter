@@ -1,5 +1,5 @@
 import { generateMap, TILE, COLS, ROWS } from './map.js';
-import { Truck, Hunter, DIR } from './entities.js';
+import { Truck, Hunter, NPC, DIR } from './entities.js';
 import { Renderer } from './renderer.js';
 
 const canvas = document.getElementById('canvas');
@@ -16,6 +16,7 @@ const KEY_DIR_MAP = {
 
 let gameState = 'TITLE'; // 'TITLE' | 'PLAYING' | 'WIN'
 let map, truck, hunter;
+let npcs = [];
 let elapsed = 0;
 let lastTime = null;
 
@@ -111,6 +112,13 @@ function startGame() {
   );
   hunter = new Hunter(hunterPos.x, hunterPos.y);
 
+  // Spawn 4 NPC traffic cars on random road tiles
+  npcs = [];
+  for (let i = 0; i < 4; i++) {
+    const pos = findRoadTile(truckPos);
+    npcs.push(new NPC(pos.x, pos.y, i));
+  }
+
   elapsed = 0;
   lastTime = null;
   trappedTimer = null;
@@ -172,7 +180,8 @@ function loop(timestamp) {
     const activeKey = heldKeys[heldKeys.length - 1];
     if (activeKey) truck.queueDirection(KEY_DIR_MAP[activeKey]);
 
-    truck.update(dt, map, trafficLight);
+    for (const npc of npcs) npc.update(dt, map);
+    truck.update(dt, map, trafficLight, npcs);
     hunter.update(dt, map, truck);
 
     checkWin(dt);
@@ -181,6 +190,7 @@ function loop(timestamp) {
   renderer.clear();
   renderer.drawMap(map);
   renderer.drawTrafficLights(map, trafficLight);
+  renderer.drawNPCs(npcs);
   renderer.drawTruck(truck);
   renderer.drawHunter(hunter);
   renderer.drawHUD({

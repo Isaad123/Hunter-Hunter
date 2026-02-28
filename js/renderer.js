@@ -209,6 +209,38 @@ export class Renderer {
     ctx.beginPath(); ctx.arc(cx, cy - 6,  3.5, 0, Math.PI * 2); ctx.fill();
   }
 
+  // ─── NPC cars ────────────────────────────────────────────────────────────────
+
+  drawNPCs(npcs) {
+    for (const npc of npcs) {
+      const ctx = this.ctx;
+      const center = npc.getCenterPx();
+      ctx.save();
+      ctx.translate(center.x, center.y);
+      ctx.rotate(npc.facing.angle);
+      this._spriteNPC(ctx, npc.color);
+      ctx.restore();
+    }
+  }
+
+  _spriteNPC(ctx, color) {
+    // Same shape as the truck, different body colour
+    ctx.fillStyle = color;
+    ctx.fillRect(-14, -8, 28, 16);
+    // Cab
+    ctx.fillStyle = '#1a1a2a';
+    ctx.fillRect(4, -6, 8, 12);
+    // Bumper
+    ctx.fillStyle = '#888';
+    ctx.fillRect(12, -4, 3, 8);
+    // Wheels
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-12, -10, 6, 4);
+    ctx.fillRect(-12,   6, 6, 4);
+    ctx.fillRect(  6, -10, 6, 4);
+    ctx.fillRect(  6,   6, 6, 4);
+  }
+
   // ─── Entities ────────────────────────────────────────────────────────────────
 
   drawTruck(truck) {
