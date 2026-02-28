@@ -67,16 +67,6 @@ export class Truck {
         }
         this.nextDir = null;
       }
-      // Try to continue straight
-      if (!moved) {
-        const nx = this.tx + this.facing.x;
-        const ny = this.ty + this.facing.y;
-        if (map.isRoad(nx, ny)) {
-          this.targetTx = nx;
-          this.targetTy = ny;
-          this.moving = true;
-        }
-      }
     }
   }
 
