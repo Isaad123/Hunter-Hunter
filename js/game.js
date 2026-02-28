@@ -150,7 +150,6 @@ function startGame() {
   // Spawn 2–10 NPC traffic cars, at least one per quadrant
   const npcCount = 2 + Math.floor(Math.random() * 9);
   npcs = spawnNPCs(npcCount);
-  console.log('[HH] NPCs spawned:', npcs.length, npcs.map(n => `(${n.tx},${n.ty})`));
 
   elapsed = 0;
   lastTime = null;
@@ -233,7 +232,6 @@ function loop(timestamp) {
     hunterFleeing: hunter.state === 'flee',
     truckStall: truck.stallTimer,
     trafficLight,
-    npcCount: npcs.length,
   });
 }
 

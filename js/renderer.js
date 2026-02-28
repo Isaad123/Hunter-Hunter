@@ -321,20 +321,9 @@ export class Renderer {
 
   drawHUD(state) {
     const ctx = this.ctx;
-    const { gameState, elapsed, trappedCountdown, truckStall, trafficLight, npcCount } = state;
+    const { gameState, elapsed, trappedCountdown, truckStall, trafficLight } = state;
     const W = this.canvas.width;
     const H = this.canvas.height;
-
-    // NPC car count (top-right corner)
-    if (gameState === 'PLAYING' && npcCount !== undefined) {
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      ctx.fillRect(W - 100, 8, 92, 22);
-      ctx.fillStyle = '#e8a020';
-      ctx.font = '13px Courier New';
-      ctx.textAlign = 'right';
-      ctx.fillText(`CARS: ${npcCount}`, W - 12, 23);
-      ctx.textAlign = 'left';
-    }
 
     // Elapsed timer
     if (gameState === 'PLAYING' || gameState === 'WIN') {
