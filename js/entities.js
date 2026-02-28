@@ -1,7 +1,8 @@
 import { TILE, bfsDistances } from './map.js';
 
-const TRUCK_SPEED  = 4.5; // tiles per second — slightly faster than Hunter
-const HUNTER_SPEED = 3.0; // tiles per second
+// Truck gains exactly 1 tile per 7 tiles the Hunter travels (ratio 8:7)
+const HUNTER_SPEED = 3.5; // tiles per second
+const TRUCK_SPEED  = 4.0; // tiles per second  (4.0 / 3.5 = 8/7)
 
 // Direction constants
 export const DIR = {
