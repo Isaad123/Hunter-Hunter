@@ -402,7 +402,7 @@ export class Renderer {
       ctx.fillStyle = '#aaa';
       ctx.font = '18px Courier New';
       if (Math.floor(Date.now() / 500) % 2 === 0) {
-        ctx.fillText('Press R to play again', W / 2, H / 2 + 55);
+        ctx.fillText('Press R or tap to play again', W / 2, H / 2 + 55);
       }
       ctx.textAlign = 'left';
     }

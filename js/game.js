@@ -64,6 +64,7 @@ const trafficLight = {
 // ─── Input ────────────────────────────────────────────────────────────────────
 
 const heldKeys = [];
+let touchDir = null; // direction held via on-screen D-pad
 
 window.addEventListener('keydown', e => {
   if (gameState === 'TITLE') { startGame(); return; }
@@ -78,6 +79,40 @@ window.addEventListener('keyup', e => {
   const i = heldKeys.indexOf(e.key);
   if (i !== -1) heldKeys.splice(i, 1);
 });
+
+// Tap anywhere to start / restart (touch devices)
+window.addEventListener('pointerup', e => {
+  if (e.pointerType !== 'touch') return;
+  if (gameState === 'TITLE') { startGame(); return; }
+  if (gameState === 'WIN')   { startGame(); return; }
+});
+
+// On-screen D-pad
+function setupDpad() {
+  const buttons = [
+    ['btn-up',    DIR.UP],
+    ['btn-down',  DIR.DOWN],
+    ['btn-left',  DIR.LEFT],
+    ['btn-right', DIR.RIGHT],
+  ];
+  for (const [id, dir] of buttons) {
+    const btn = document.getElementById(id);
+    if (!btn) continue;
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      touchDir = dir;
+      btn.classList.add('pressed');
+    });
+    const release = () => {
+      touchDir = null;
+      btn.classList.remove('pressed');
+    };
+    btn.addEventListener('pointerup',     release);
+    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('pointerleave',  release);
+  }
+}
+setupDpad();
 
 // ─── Game lifecycle ────────────────────────────────────────────────────────────
 
@@ -210,7 +245,8 @@ function loop(timestamp) {
     trafficLight.update(dt * 1000);
 
     const activeKey = heldKeys[heldKeys.length - 1];
-    if (activeKey) truck.queueDirection(KEY_DIR_MAP[activeKey]);
+    const activeDir = activeKey ? KEY_DIR_MAP[activeKey] : touchDir;
+    if (activeDir) truck.queueDirection(activeDir);
 
     for (const npc of npcs) npc.update(dt, map);
     truck.update(dt, map, trafficLight, npcs);
