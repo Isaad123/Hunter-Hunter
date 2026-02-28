@@ -224,21 +224,26 @@ export class Renderer {
   }
 
   _spriteNPC(ctx, color) {
-    // Same shape as the truck, different body colour
+    // Body — full tile-width colored rectangle (easy to see)
     ctx.fillStyle = color;
-    ctx.fillRect(-14, -8, 28, 16);
+    ctx.fillRect(-15, -9, 30, 18);
+    // Dark outline so it reads against any road colour
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-15, -9, 30, 18);
     // Cab
     ctx.fillStyle = '#1a1a2a';
-    ctx.fillRect(4, -6, 8, 12);
+    ctx.fillRect(4, -7, 9, 14);
     // Bumper
-    ctx.fillStyle = '#888';
-    ctx.fillRect(12, -4, 3, 8);
+    ctx.fillStyle = '#aaa';
+    ctx.fillRect(13, -5, 3, 10);
     // Wheels
-    ctx.fillStyle = '#333';
-    ctx.fillRect(-12, -10, 6, 4);
-    ctx.fillRect(-12,   6, 6, 4);
-    ctx.fillRect(  6, -10, 6, 4);
-    ctx.fillRect(  6,   6, 6, 4);
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-13, -12, 7, 5);
+    ctx.fillRect(-13,   7, 7, 5);
+    ctx.fillRect(  5, -12, 7, 5);
+    ctx.fillRect(  5,   7, 7, 5);
+    ctx.lineWidth = 1;
   }
 
   // ─── Entities ────────────────────────────────────────────────────────────────
@@ -316,9 +321,20 @@ export class Renderer {
 
   drawHUD(state) {
     const ctx = this.ctx;
-    const { gameState, elapsed, trappedCountdown, truckStall, trafficLight } = state;
+    const { gameState, elapsed, trappedCountdown, truckStall, trafficLight, npcCount } = state;
     const W = this.canvas.width;
     const H = this.canvas.height;
+
+    // NPC car count (top-right corner)
+    if (gameState === 'PLAYING' && npcCount !== undefined) {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(W - 100, 8, 92, 22);
+      ctx.fillStyle = '#e8a020';
+      ctx.font = '13px Courier New';
+      ctx.textAlign = 'right';
+      ctx.fillText(`CARS: ${npcCount}`, W - 12, 23);
+      ctx.textAlign = 'left';
+    }
 
     // Elapsed timer
     if (gameState === 'PLAYING' || gameState === 'WIN') {
