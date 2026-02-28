@@ -9,29 +9,32 @@
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      height: 100%;
+      overflow: hidden;
     }
     body {
       background: #1a1a2e;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
-      min-height: 100vh;
-      min-height: 100dvh;
       font-family: 'Courier New', monospace;
       color: #eee;
       touch-action: none;
-      overflow: hidden;
     }
     #game-container {
       position: relative;
       width: 100%;
       max-width: 900px;
+      flex-shrink: 0;
     }
     canvas {
       display: block;
       width: 100%;
-      height: auto;
+      /* maintain 900:684 aspect ratio on any screen width */
+      aspect-ratio: 900 / 684;
       image-rendering: pixelated;
       border: 2px solid #444;
       touch-action: none;
@@ -47,18 +50,18 @@
       gap: 16px;
     }
     #title-screen h1 {
-      font-size: clamp(24px, 6vw, 48px);
+      font-size: clamp(20px, 5.5vw, 48px);
       letter-spacing: 6px;
       color: #fff;
       text-shadow: 0 0 20px #aaf;
     }
     #title-screen p {
-      font-size: clamp(14px, 3vw, 18px);
+      font-size: clamp(13px, 3vw, 18px);
       color: #aaa;
       animation: blink 1.2s infinite;
     }
     #title-screen .instructions {
-      font-size: clamp(11px, 2.5vw, 13px);
+      font-size: clamp(10px, 2.5vw, 13px);
       color: #666;
       animation: none;
       text-align: center;
@@ -72,13 +75,13 @@
 
     /* ── On-screen D-pad ── */
     #dpad {
-      display: flex;
+      display: none; /* shown via JS on touch devices */
       justify-content: center;
       align-items: center;
-      padding: 12px 0 env(safe-area-inset-bottom, 12px);
+      flex: 1;
       width: 100%;
       max-width: 900px;
-      background: #1a1a2e;
+      padding-bottom: env(safe-area-inset-bottom, 8px);
     }
     #dpad-grid {
       display: grid;
@@ -96,21 +99,10 @@
       touch-action: none;
       user-select: none;
       -webkit-user-select: none;
-      -webkit-tap-highlight-color: transparent;
-      transition: background 0.08s;
     }
-    .dpad-btn:active,
     .dpad-btn.pressed {
-      background: rgba(255, 255, 255, 0.30);
-      border-color: rgba(255, 255, 255, 0.6);
-    }
-    .dpad-empty {
-      /* spacer cells in the grid */
-    }
-
-    /* Hide D-pad on devices with a precise pointer (mouse) */
-    @media (pointer: fine) {
-      #dpad { display: none; }
+      background: rgba(255, 255, 255, 0.35);
+      border-color: rgba(255, 255, 255, 0.7);
     }
   </style>
 </head>
@@ -119,10 +111,9 @@
     <canvas id="canvas" width="900" height="684"></canvas>
     <div id="title-screen">
       <h1>HUNTER-HUNTER</h1>
-      <p>TAP OR PRESS ANY KEY</p>
+      <p id="start-prompt">PRESS ANY KEY TO START</p>
       <div class="instructions">
-        WASD / Arrow Keys / D-pad to drive<br>
-        Catch Hunter before he escapes!<br>
+        Drive to catch Hunter before he escapes!<br>
         Corner him for 3 seconds to win<br><br>
         Stop signs pause you 2 seconds<br>
         Red &amp; yellow lights block the intersection<br>
@@ -131,21 +122,29 @@
     </div>
   </div>
 
-  <!-- On-screen D-pad (shown on touch devices) -->
+  <!-- On-screen D-pad (hidden until JS detects a touch device) -->
   <div id="dpad">
     <div id="dpad-grid">
-      <div class="dpad-empty"></div>
+      <div></div>
       <button class="dpad-btn" id="btn-up">▲</button>
-      <div class="dpad-empty"></div>
+      <div></div>
       <button class="dpad-btn" id="btn-left">◄</button>
-      <div class="dpad-empty"></div>
+      <div></div>
       <button class="dpad-btn" id="btn-right">►</button>
-      <div class="dpad-empty"></div>
+      <div></div>
       <button class="dpad-btn" id="btn-down">▼</button>
-      <div class="dpad-empty"></div>
+      <div></div>
     </div>
   </div>
 
   <script type="module" src="js/game.js"></script>
+
+  <script>
+    // Show D-pad and update prompt on touch-capable devices
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      document.getElementById('dpad').style.display = 'flex';
+      document.getElementById('start-prompt').textContent = 'TAP TO START';
+    }
+  </script>
 </body>
 </html>
