@@ -57,10 +57,37 @@
       color: #fff;
       text-shadow: 0 0 20px #aaf;
     }
-    #title-screen p {
-      font-size: clamp(13px, 3vw, 18px);
-      color: #aaa;
-      animation: blink 1.2s infinite;
+    #mode-select {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .mode-btn {
+      background: rgba(255,255,255,0.10);
+      border: 2px solid rgba(255,255,255,0.30);
+      border-radius: 12px;
+      color: #fff;
+      font-family: 'Courier New', monospace;
+      font-size: clamp(12px, 3vw, 16px);
+      font-weight: bold;
+      padding: 14px 22px;
+      cursor: pointer;
+      text-align: center;
+      line-height: 1.7;
+      letter-spacing: 1px;
+      touch-action: manipulation;
+    }
+    .mode-btn:hover, .mode-btn:active {
+      background: rgba(255,255,255,0.25);
+      border-color: rgba(255,255,255,0.65);
+    }
+    .kbd-hint {
+      display: block;
+      font-size: 0.72em;
+      color: #777;
+      font-weight: normal;
+      letter-spacing: 0;
     }
     #title-screen .instructions {
       font-size: clamp(10px, 2.5vw, 13px);
@@ -113,15 +140,22 @@
     <canvas id="canvas" width="900" height="684"></canvas>
     <div id="title-screen">
       <h1>HUNTER-HUNTER</h1>
-      <p id="start-prompt">PRESS ANY KEY TO START</p>
+      <div id="mode-select">
+        <button class="mode-btn" id="btn-hunt-mode">
+          HUNT HUNTER
+          <span class="kbd-hint" id="hint-hunt">press 1 or H</span>
+        </button>
+        <button class="mode-btn" id="btn-escape-mode">
+          PLAY AS HUNTER
+          <span class="kbd-hint" id="hint-escape">press 2 or P</span>
+        </button>
+      </div>
       <div class="instructions">
-        Drive to catch Hunter before he escapes!<br>
-        Corner him for 3 seconds to win<br><br>
-        Stop Hunter from hacking the electrical box!<br>
-        If he hacks it for 15 seconds, Donnie arrives — you lose<br><br>
-        Stop signs pause you 2 seconds<br>
-        Red &amp; yellow lights block the intersection<br>
-        Your truck is faster — use it wisely
+        HUNT: Drive the truck — corner Hunter 3s to win<br>
+        ESCAPE: Control Hunter — hack the electrical box 10s to win<br><br>
+        Donnie arrives if Hunter hacks the box (Hunt loses / Escape wins)<br>
+        Stop signs pause the truck 2 seconds<br>
+        Red &amp; yellow lights block the intersection
       </div>
     </div>
   </div>
@@ -153,10 +187,11 @@
     fitCanvas();
     window.addEventListener('resize', fitCanvas);
 
-    // Show D-pad and update prompt on any touch-capable device
+    // Show D-pad on touch devices; hide keyboard hints (buttons are tappable directly)
     if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
       document.getElementById('dpad').style.display = 'flex';
-      document.getElementById('start-prompt').textContent = 'TAP TO START';
+      document.getElementById('hint-hunt').style.display = 'none';
+      document.getElementById('hint-escape').style.display = 'none';
     }
   </script>
 </body>

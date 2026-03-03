@@ -123,6 +123,7 @@ export class Hunter {
     this.targetTy = ty;
     this.state = 'seek'; // 'flee' | 'seek' | 'hacking'
     this.lastDir = null;
+    this.nextDir = null; // used when player-controlled
   }
 
   update(dt, map, truck, boxPos) {
@@ -224,6 +225,42 @@ export class Hunter {
       this.targetTx = chosen.x;
       this.targetTy = chosen.y;
       this.moving = true;
+    }
+  }
+
+  // ── Player-controlled mode ───────────────────────────────────────────────────
+
+  queueDirection(dir) {
+    this.nextDir = dir;
+  }
+
+  // Smooth tile movement driven by player input (mirrors Truck movement)
+  updatePlayer(dt, map) {
+    if (this.moving) {
+      this.moveProgress += HUNTER_SPEED * dt;
+      if (this.moveProgress >= 1) {
+        this.tx = this.targetTx;
+        this.ty = this.targetTy;
+        this.moveProgress = 0;
+        this.moving = false;
+        this.px = this.tx * TILE;
+        this.py = this.ty * TILE;
+      } else {
+        this.px = (this.tx + this.facing.x * this.moveProgress) * TILE;
+        this.py = (this.ty + this.facing.y * this.moveProgress) * TILE;
+      }
+    }
+
+    if (!this.moving && this.nextDir) {
+      const nx = this.tx + this.nextDir.x;
+      const ny = this.ty + this.nextDir.y;
+      if (map.isRoad(nx, ny)) {
+        this.facing = this.nextDir;
+        this.targetTx = nx;
+        this.targetTy = ny;
+        this.moving = true;
+      }
+      this.nextDir = null;
     }
   }
 

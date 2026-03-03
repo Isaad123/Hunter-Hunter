@@ -1,4 +1,4 @@
-import { generateMap, TILE, COLS, ROWS } from './map.js';
+import { generateMap, TILE, COLS, ROWS, bfsDistances } from './map.js';
 import { Truck, Hunter, NPC, DIR } from './entities.js';
 import { Renderer } from './renderer.js';
 
@@ -14,7 +14,8 @@ const KEY_DIR_MAP = {
   ArrowUp:    DIR.UP,    w: DIR.UP,    W: DIR.UP,
 };
 
-let gameState = 'TITLE'; // 'TITLE' | 'PLAYING' | 'WIN'
+let gameState = 'TITLE'; // 'TITLE' | 'PLAYING' | 'WIN' | 'LOSE'
+let gameMode  = 'HUNT';  // 'HUNT' | 'ESCAPE'
 let map, truck, hunter;
 let npcs = [];
 let elapsed = 0;
@@ -71,8 +72,15 @@ const heldKeys = [];
 let touchDir = null; // direction held via on-screen D-pad
 
 window.addEventListener('keydown', e => {
-  if (gameState === 'TITLE') { startGame(); return; }
-  if (gameState === 'WIN' || gameState === 'LOSE') { if (e.key === 'r' || e.key === 'R') startGame(); return; }
+  if (gameState === 'TITLE') {
+    if      (e.key === '1' || e.key === 'h' || e.key === 'H') startGame('HUNT');
+    else if (e.key === '2' || e.key === 'p' || e.key === 'P') startGame('ESCAPE');
+    return;
+  }
+  if (gameState === 'WIN' || gameState === 'LOSE') {
+    if (e.key === 'r' || e.key === 'R') returnToTitle();
+    return;
+  }
   if (KEY_DIR_MAP[e.key]) {
     e.preventDefault();
     if (!heldKeys.includes(e.key)) heldKeys.push(e.key);
@@ -84,11 +92,25 @@ window.addEventListener('keyup', e => {
   if (i !== -1) heldKeys.splice(i, 1);
 });
 
-// Tap anywhere to start / restart on touch devices
+// Tap to return to menu after WIN/LOSE on touch devices
 window.addEventListener('touchend', e => {
-  if (gameState === 'TITLE') { e.preventDefault(); startGame(); return; }
-  if (gameState === 'WIN' || gameState === 'LOSE') { e.preventDefault(); startGame(); return; }
+  if (gameState === 'WIN' || gameState === 'LOSE') { e.preventDefault(); returnToTitle(); return; }
 }, { passive: false });
+
+// Mode-selection buttons on title screen
+function setupModeButtons() {
+  const btnHunt   = document.getElementById('btn-hunt-mode');
+  const btnEscape = document.getElementById('btn-escape-mode');
+  if (btnHunt) {
+    btnHunt.addEventListener('click', () => startGame('HUNT'));
+    btnHunt.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); startGame('HUNT'); }, { passive: false });
+  }
+  if (btnEscape) {
+    btnEscape.addEventListener('click', () => startGame('ESCAPE'));
+    btnEscape.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); startGame('ESCAPE'); }, { passive: false });
+  }
+}
+setupModeButtons();
 
 // On-screen D-pad — use native touch events for maximum iOS Safari compatibility
 function setupDpad() {
@@ -176,7 +198,13 @@ function spawnNPCs(count) {
   return result;
 }
 
-function startGame() {
+function returnToTitle() {
+  gameState = 'TITLE';
+  titleScreen.classList.remove('hidden');
+}
+
+function startGame(mode = gameMode) {
+  gameMode = mode;
   map = generateMap();
   trafficLight.reset();
 
@@ -209,6 +237,7 @@ function startGame() {
 
 // ─── Win detection ─────────────────────────────────────────────────────────────
 
+// Truck catches Hunter → WIN for Hunt player, LOSE for Escape player
 function checkWin(dt) {
   const tc = truck.getCenterPx();
   const hc = hunter.getCenterPx();
@@ -217,7 +246,7 @@ function checkWin(dt) {
     Math.abs(tc.x - hc.x) < HALF * 2 &&
     Math.abs(tc.y - hc.y) < HALF * 2
   ) {
-    gameState = 'WIN';
+    gameState = gameMode === 'ESCAPE' ? 'LOSE' : 'WIN';
     return;
   }
 
@@ -229,7 +258,7 @@ function checkWin(dt) {
     } else {
       trappedTimer -= dt * 1000;
       if (trappedTimer <= 0) {
-        gameState = 'WIN';
+        gameState = gameMode === 'ESCAPE' ? 'LOSE' : 'WIN';
         return;
       }
     }
@@ -240,15 +269,51 @@ function checkWin(dt) {
 
 // ─── Electrical box check ──────────────────────────────────────────────────────
 
+// Donnie arriving → LOSE for Hunt player, WIN for Escape player
 function checkBox(dt) {
-  if (hunter.state === 'hacking') {
+  const onBox = gameMode === 'HUNT'
+    ? hunter.state === 'hacking'
+    : map.electricalBox &&
+      hunter.tx === map.electricalBox.x &&
+      hunter.ty === map.electricalBox.y &&
+      !hunter.moving;
+
+  if (onBox) {
     boxTimer += dt * 1000;
     if (boxTimer >= BOX_DURATION) {
-      gameState = 'LOSE';
+      gameState = gameMode === 'ESCAPE' ? 'WIN' : 'LOSE';
     }
   } else {
     boxTimer = 0;
   }
+}
+
+// ─── Truck AI (ESCAPE mode) ────────────────────────────────────────────────────
+
+function truckAIUpdate() {
+  if (truck.moving || truck.stallTimer > 0) return;
+
+  const dists = bfsDistances(map, hunter.tx, hunter.ty);
+  const key = (x, y) => `${x},${y}`;
+
+  let bestDir = null;
+  let bestDist = Infinity;
+
+  for (const dir of [DIR.RIGHT, DIR.LEFT, DIR.DOWN, DIR.UP]) {
+    const nx = truck.tx + dir.x;
+    const ny = truck.ty + dir.y;
+    if (!map.isRoad(nx, ny)) continue;
+    if (map.isIntersection(nx, ny) && !trafficLight.canEnter(dir.x, dir.y)) continue;
+    if (npcs.some(npc =>
+      (npc.tx === nx && npc.ty === ny) ||
+      (npc.moving && npc.targetTx === nx && npc.targetTy === ny)
+    )) continue;
+
+    const d = dists.get(key(nx, ny)) ?? Infinity;
+    if (d < bestDist) { bestDist = d; bestDir = dir; }
+  }
+
+  if (bestDir) truck.queueDirection(bestDir);
 }
 
 // ─── Game loop ─────────────────────────────────────────────────────────────────
@@ -272,11 +337,21 @@ function loop(timestamp) {
 
     const activeKey = heldKeys[heldKeys.length - 1];
     const activeDir = activeKey ? KEY_DIR_MAP[activeKey] : touchDir;
-    if (activeDir) truck.queueDirection(activeDir);
 
-    for (const npc of npcs) npc.update(dt, map);
-    truck.update(dt, map, trafficLight, npcs);
-    hunter.update(dt, map, truck, map.electricalBox);
+    if (gameMode === 'HUNT') {
+      // Player drives the truck; Hunter is AI
+      if (activeDir) truck.queueDirection(activeDir);
+      for (const npc of npcs) npc.update(dt, map);
+      truck.update(dt, map, trafficLight, npcs);
+      hunter.update(dt, map, truck, map.electricalBox);
+    } else {
+      // Player controls Hunter; truck is AI
+      if (activeDir) hunter.queueDirection(activeDir);
+      truckAIUpdate();
+      for (const npc of npcs) npc.update(dt, map);
+      truck.update(dt, map, trafficLight, npcs);
+      hunter.updatePlayer(dt, map);
+    }
 
     checkWin(dt);
     if (gameState === 'PLAYING') checkBox(dt);
@@ -291,9 +366,10 @@ function loop(timestamp) {
   renderer.drawHunter(hunter);
   renderer.drawHUD({
     gameState,
+    gameMode,
     elapsed,
     trappedCountdown: trappedTimer,
-    hunterFleeing: hunter.state === 'flee',
+    hunterFleeing: gameMode === 'HUNT' && hunter.state === 'flee',
     truckStall: truck.stallTimer,
     trafficLight,
     boxTimer,

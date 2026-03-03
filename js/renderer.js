@@ -363,7 +363,7 @@ export class Renderer {
 
   drawHUD(state) {
     const ctx = this.ctx;
-    const { gameState, elapsed, trappedCountdown, truckStall, trafficLight, boxTimer, boxDuration } = state;
+    const { gameState, gameMode, elapsed, trappedCountdown, truckStall, trafficLight, boxTimer, boxDuration } = state;
     const W = this.canvas.width;
     const H = this.canvas.height;
 
@@ -415,23 +415,26 @@ export class Renderer {
       ctx.textAlign = 'left';
     }
 
-    // Electrical box warning — Hunter is hacking
+    // Electrical box progress — warning for Hunt player, good news for Escape player
     if (gameState === 'PLAYING' && boxTimer > 0 && boxDuration) {
       const progress = boxTimer / boxDuration;
       const secsLeft = ((boxDuration - boxTimer) / 1000).toFixed(1);
-      const msg = `DONNIE INCOMING: ${secsLeft}s`;
+      const isEscape = gameMode === 'ESCAPE';
+      const msg = isEscape ? `HACKING: ${secsLeft}s` : `DONNIE INCOMING: ${secsLeft}s`;
       ctx.font = 'bold 18px Courier New';
       ctx.textAlign = 'center';
       const tw = ctx.measureText(msg).width;
       const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 140);
-      ctx.fillStyle = `rgba(220, 80, 0, ${pulse})`;
+      ctx.fillStyle = isEscape
+        ? `rgba(0, 180, 80, ${pulse})`
+        : `rgba(220, 80, 0, ${pulse})`;
       ctx.fillRect(W / 2 - tw / 2 - 12, 46, tw + 24, 28);
       ctx.fillStyle = '#fff';
       ctx.fillText(msg, W / 2, 65);
       // Progress bar
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(W / 2 - 110, 78, 220, 8);
-      ctx.fillStyle = '#ffdd00';
+      ctx.fillStyle = isEscape ? '#33ff88' : '#ffdd00';
       ctx.fillRect(W / 2 - 110, 78, 220 * progress, 8);
       ctx.textAlign = 'left';
     }
@@ -452,44 +455,67 @@ export class Renderer {
 
     // Win overlay
     if (gameState === 'WIN') {
-      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
       ctx.fillRect(0, 0, W, H);
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#ffd700';
-      ctx.font = 'bold 48px Courier New';
-      ctx.fillText('YOU CAUGHT HUNTER', W / 2, H / 2 - 40);
       const secs = (elapsed / 1000).toFixed(1);
-      ctx.fillStyle = '#fff';
-      ctx.font = '24px Courier New';
-      ctx.fillText(`Time: ${secs} seconds`, W / 2, H / 2 + 10);
-      ctx.fillStyle = '#aaa';
-      ctx.font = '18px Courier New';
-      if (Math.floor(Date.now() / 500) % 2 === 0) {
-        ctx.fillText('Press R or tap to play again', W / 2, H / 2 + 55);
+      if (gameMode === 'ESCAPE') {
+        ctx.fillStyle = '#33ff88';
+        ctx.font = 'bold 44px Courier New';
+        ctx.fillText('DONNIE ARRIVES!', W / 2, H / 2 - 50);
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 28px Courier New';
+        ctx.fillText('YOU ESCAPED!', W / 2, H / 2 + 2);
+        ctx.fillStyle = '#fff';
+        ctx.font = '20px Courier New';
+        ctx.fillText(`Time: ${secs} seconds`, W / 2, H / 2 + 42);
+        ctx.fillStyle = '#aaa';
+        ctx.font = '16px Courier New';
+        if (Math.floor(Date.now() / 500) % 2 === 0)
+          ctx.fillText('Press R or tap to return to menu', W / 2, H / 2 + 78);
+      } else {
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 44px Courier New';
+        ctx.fillText('YOU CAUGHT HUNTER', W / 2, H / 2 - 40);
+        ctx.fillStyle = '#fff';
+        ctx.font = '22px Courier New';
+        ctx.fillText(`Time: ${secs} seconds`, W / 2, H / 2 + 12);
+        ctx.fillStyle = '#aaa';
+        ctx.font = '16px Courier New';
+        if (Math.floor(Date.now() / 500) % 2 === 0)
+          ctx.fillText('Press R or tap to return to menu', W / 2, H / 2 + 52);
       }
       ctx.textAlign = 'left';
     }
 
-    // Lose overlay — Donny arrived
+    // Lose overlay
     if (gameState === 'LOSE') {
       ctx.fillStyle = 'rgba(0,0,0,0.78)';
       ctx.fillRect(0, 0, W, H);
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#ff4444';
-      ctx.font = 'bold 52px Courier New';
-      ctx.fillText('DONNIE ARRIVES!', W / 2, H / 2 - 50);
-      ctx.fillStyle = '#ffcc00';
-      ctx.font = 'bold 28px Courier New';
-      ctx.fillText('Hunter Escapes!', W / 2, H / 2 + 2);
       const secs = (elapsed / 1000).toFixed(1);
+      if (gameMode === 'ESCAPE') {
+        ctx.fillStyle = '#ff4444';
+        ctx.font = 'bold 52px Courier New';
+        ctx.fillText('CAUGHT!', W / 2, H / 2 - 40);
+        ctx.fillStyle = '#ffcc00';
+        ctx.font = 'bold 24px Courier New';
+        ctx.fillText('The truck got you.', W / 2, H / 2 + 10);
+      } else {
+        ctx.fillStyle = '#ff4444';
+        ctx.font = 'bold 52px Courier New';
+        ctx.fillText('DONNIE ARRIVES!', W / 2, H / 2 - 50);
+        ctx.fillStyle = '#ffcc00';
+        ctx.font = 'bold 28px Courier New';
+        ctx.fillText('Hunter Escapes!', W / 2, H / 2 + 2);
+      }
       ctx.fillStyle = '#fff';
       ctx.font = '20px Courier New';
-      ctx.fillText(`Time: ${secs} seconds`, W / 2, H / 2 + 40);
+      ctx.fillText(`Time: ${secs} seconds`, W / 2, H / 2 + 45);
       ctx.fillStyle = '#aaa';
       ctx.font = '16px Courier New';
-      if (Math.floor(Date.now() / 500) % 2 === 0) {
-        ctx.fillText('Press R or tap to play again', W / 2, H / 2 + 76);
-      }
+      if (Math.floor(Date.now() / 500) % 2 === 0)
+        ctx.fillText('Press R or tap to return to menu', W / 2, H / 2 + 80);
       ctx.textAlign = 'left';
     }
   }
