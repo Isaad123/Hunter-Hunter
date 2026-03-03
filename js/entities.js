@@ -1,7 +1,7 @@
 import { TILE, bfsDistances } from './map.js';
 
 // Truck gains exactly 1 tile per 16 tiles the Hunter travels (ratio 17:16)
-const HUNTER_SPEED = 3.2; // tiles per second
+const HUNTER_SPEED = 3.5; // tiles per second
 const TRUCK_SPEED  = 3.4; // tiles per second  (3.4 / 3.2 = 17/16)
 const NPC_SPEED    = 2.2; // tiles per second — background traffic cars
 
@@ -144,9 +144,9 @@ export class Hunter {
     if (!this.moving) {
       const dist = chebyshev(this.tx, this.ty, truck.tx, truck.ty);
 
-      // Flee threshold is higher while hacking — standing still needs more lead time
-      const fleeRadius  = this.state === 'hacking' ? 5 : 3;
-      const calmRadius  = this.state === 'hacking' ? 7 : 5;
+      // Always use a wide flee radius — escape is the dominant priority
+      const fleeRadius = 5;
+      const calmRadius = 7;
 
       if (dist <= fleeRadius) {
         this.state = 'flee';
@@ -195,16 +195,16 @@ export class Hunter {
       }
       chosen = candidates[Math.floor(Math.random() * candidates.length)];
     } else {
-      // Seek + escape: score each neighbour by (truckDist - boxDist).
-      // Hunter naturally moves toward the box while preferring tiles
-      // that also increase distance from the truck.
+      // Seek + escape: escape is weighted 2× over box progress.
+      // score = truckDist - 0.5 * boxDist ensures Hunter never trades
+      // safety for box proximity.
       const boxDists = bfsDistances(map, boxPos.x, boxPos.y, null);
       let best = -Infinity;
       const candidates = [];
       for (const n of neighbors) {
         const td = truckDists.get(key(n.x, n.y)) ?? 0;
         const bd = boxDists.get(key(n.x, n.y)) ?? 999;
-        const score = td - bd;
+        const score = td - bd * 0.5;
         if (score > best) {
           best = score;
           candidates.length = 0;

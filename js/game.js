@@ -25,7 +25,7 @@ const TRAPPED_DURATION = 3000; // ms
 let trappedTimer = null;
 
 // Electrical box lose condition
-const BOX_DURATION = 15000; // ms Hunter must stay on box to summon Donny
+const BOX_DURATION = 10000; // ms Hunter must stay on box to summon Donnie
 let boxTimer = 0;
 
 // ─── Traffic light ─────────────────────────────────────────────────────────────

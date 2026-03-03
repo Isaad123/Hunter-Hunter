@@ -419,7 +419,7 @@ export class Renderer {
     if (gameState === 'PLAYING' && boxTimer > 0 && boxDuration) {
       const progress = boxTimer / boxDuration;
       const secsLeft = ((boxDuration - boxTimer) / 1000).toFixed(1);
-      const msg = `DONNY INCOMING: ${secsLeft}s`;
+      const msg = `DONNIE INCOMING: ${secsLeft}s`;
       ctx.font = 'bold 18px Courier New';
       ctx.textAlign = 'center';
       const tw = ctx.measureText(msg).width;
@@ -477,7 +477,7 @@ export class Renderer {
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ff4444';
       ctx.font = 'bold 52px Courier New';
-      ctx.fillText('DONNY ARRIVES!', W / 2, H / 2 - 50);
+      ctx.fillText('DONNIE ARRIVES!', W / 2, H / 2 - 50);
       ctx.fillStyle = '#ffcc00';
       ctx.font = 'bold 28px Courier New';
       ctx.fillText('Hunter Escapes!', W / 2, H / 2 + 2);
